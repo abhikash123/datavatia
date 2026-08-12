@@ -1,0 +1,6 @@
+
+data/virginia_block_groups.geojson
+data/virginia_block_groups_population.geojson
+data/community_profiles/virginia_community_profiles.geojson
+
+web/public/data/community/virginia_community_profiles.geojson
