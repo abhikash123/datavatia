@@ -380,8 +380,15 @@ profiles["data_confidence"] = profiles.apply(
 
 print("\nJoining profiles to geographic boundaries...")
 
+# The block-group file already carries population and
+# housing_units; merging them in again would produce
+# population_x / population_y columns and the web map's
+# ["get", "population"] lookup would find nothing.
+
 communities = communities.merge(
-    profiles,
+    profiles.drop(
+        columns=["population", "housing_units"]
+    ),
     on="GEOID",
     how="left"
 )
@@ -476,6 +483,12 @@ print(
 
 print("\nSaving geographic community dataset...")
 
+# MapLibre requires GeoJSON in WGS84 longitude/latitude.
+# The frames above are in EPSG:32618 (UTM meters) for the
+# buffer math, so reproject before saving.
+
+communities = communities.to_crs("EPSG:4326")
+
 communities.to_file(
     OUTPUT_GEOJSON,
     driver="GeoJSON"
@@ -483,6 +496,16 @@ communities.to_file(
 
 print(
     f"Saved to:\n{OUTPUT_GEOJSON.resolve()}"
+)
+
+# The copy the web map fetches is built separately from the
+# profiles CSV and cartographic boundaries — full-resolution
+# TIGER geometry is far too large to serve to the browser,
+# and per-feature simplification would break shared borders.
+
+print(
+    "\nRun build_web_community_data.py to refresh the "
+    "web map's copy of this dataset."
 )
 
 

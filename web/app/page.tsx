@@ -9,7 +9,18 @@ import Map, {
   Layer,
 } from "react-map-gl/maplibre";
 
+import type { LayerProps } from "react-map-gl/maplibre";
+import type { StyleSpecification } from "maplibre-gl";
+import { setWorkerUrl } from "maplibre-gl";
+
 import "maplibre-gl/dist/maplibre-gl.css";
+
+// MapLibre normally finds its worker script relative to its own
+// module URL, which stops working once the library is bundled —
+// the worker silently never starts and GeoJSON sources hang
+// forever. Point it at the copy served from public/ instead
+// (kept in sync by scripts/sync-maplibre-worker.js).
+setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
 type DataCenter = {
   OBJECTID: number;
@@ -37,7 +48,19 @@ type AnalysisMode =
   | "power"
   | "impact";
 
-const MAP_STYLE = {
+type CommunityStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "error";
+
+// Passed to the source as a URL so MapLibre's worker fetches
+// and parses it off the main thread. Handing the source a
+// pre-parsed object stalls the worker on a file this large.
+const COMMUNITY_DATA_URL =
+  "/data/community/virginia_community_profiles.geojson";
+
+const MAP_STYLE: StyleSpecification = {
   version: 8,
 
   sources: {
@@ -74,15 +97,15 @@ const MAP_STYLE = {
   ],
 };
 
-const communityFillLayer = {
+const communityFillLayer: LayerProps = {
   id: "community-population-fill",
-  type: "fill" as const,
+  type: "fill",
 
   paint: {
     "fill-color": [
       "interpolate",
       ["linear"],
-      ["get", "population"],
+      ["coalesce", ["get", "population"], 0],
 
       0,
       "#e8f5e9",
@@ -113,9 +136,9 @@ const communityFillLayer = {
   },
 };
 
-const communityOutlineLayer = {
+const communityOutlineLayer: LayerProps = {
   id: "community-population-outline",
-  type: "line" as const,
+  type: "line",
 
   paint: {
     "line-color": "#ffffff",
@@ -140,14 +163,14 @@ export default function Home() {
   const [analysisMode, setAnalysisMode] =
     useState<AnalysisMode>("none");
 
-  const [communityData, setCommunityData] =
-    useState<any | null>(null);
-
   const [loading, setLoading] =
     useState(true);
 
-  const [communityLoading, setCommunityLoading] =
-    useState(false);
+  const [communityStatus, setCommunityStatus] =
+    useState<CommunityStatus>("idle");
+
+  const [communityAttempt, setCommunityAttempt] =
+    useState(0);
 
   useEffect(() => {
     async function loadData() {
@@ -178,42 +201,20 @@ export default function Home() {
     loadData();
   }, []);
 
-  async function loadCommunityData() {
-    if (communityData) {
-      return;
-    }
-
-    setCommunityLoading(true);
-
-    try {
-      const response = await fetch(
-        "/data/community/virginia_community_profiles.geojson"
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `HTTP ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-
-      setCommunityData(data);
-    } catch (error) {
-      console.error(
-        "Failed to load community data:",
-        error
-      );
-    } finally {
-      setCommunityLoading(false);
-    }
-  }
-
-  async function selectAnalysis(
+  function selectAnalysis(
     mode: AnalysisMode
   ) {
-    if (mode === "community") {
-      await loadCommunityData();
+    if (
+      mode === "community" &&
+      (communityStatus === "idle" ||
+        communityStatus === "error")
+    ) {
+      // Remounts the source so a failed load is retried.
+      setCommunityAttempt(
+        (attempt) => attempt + 1
+      );
+
+      setCommunityStatus("loading");
     }
 
     setAnalysisMode(mode);
@@ -292,7 +293,40 @@ export default function Home() {
             height: "100%",
           }}
 
-          attributionControl={true}
+          onSourceData={(event) => {
+            // Removing a source also fires sourcedata with
+            // isSourceLoaded true; only a still-registered
+            // source may mark the data ready.
+            if (
+              event.sourceId ===
+                "community-source" &&
+              event.isSourceLoaded &&
+              event.target.getSource(
+                "community-source"
+              )
+            ) {
+              setCommunityStatus("ready");
+            }
+          }}
+
+          onError={(event) => {
+            if (
+              (event as { sourceId?: string })
+                .sourceId ===
+              "community-source"
+            ) {
+              console.error(
+                "Failed to load community data:",
+                event.error
+              );
+
+              setCommunityStatus("error");
+            } else {
+              // Keep the library's default behavior of
+              // surfacing unrelated map errors.
+              console.error(event.error);
+            }
+          }}
         >
 
           <NavigationControl
@@ -305,22 +339,32 @@ export default function Home() {
           {/* COMMUNITY EXPOSURE LAYER */}
           {/* ================================================== */}
 
-          {analysisMode === "community" &&
-            communityData && (
+          {/* The source stays mounted once requested so that
+              leaving and re-entering community mode reuses the
+              already-parsed data instead of refetching 6.9MB;
+              only the layers toggle with the mode. */}
+          {communityStatus !== "idle" && (
 
               <Source
+                key={communityAttempt}
                 id="community-source"
                 type="geojson"
-                data={communityData}
+                data={COMMUNITY_DATA_URL}
               >
 
-                <Layer
-                  {...communityFillLayer}
-                />
+                {analysisMode ===
+                  "community" && (
+                  <Layer
+                    {...communityFillLayer}
+                  />
+                )}
 
-                <Layer
-                  {...communityOutlineLayer}
-                />
+                {analysisMode ===
+                  "community" && (
+                  <Layer
+                    {...communityOutlineLayer}
+                  />
+                )}
 
               </Source>
             )}
@@ -863,7 +907,7 @@ export default function Home() {
         {/* COMMUNITY LEGEND */}
 
         {analysisMode === "community" &&
-          communityData && (
+          communityStatus === "ready" && (
 
           <div className="border-t border-slate-200 px-5 py-4">
 
@@ -904,10 +948,22 @@ export default function Home() {
           </div>
         )}
 
-        {communityLoading && (
+        {analysisMode === "community" &&
+          communityStatus === "loading" && (
 
           <div className="border-t border-slate-200 px-5 py-4 text-center text-xs text-slate-500">
             Loading community data...
+          </div>
+
+        )}
+
+        {analysisMode === "community" &&
+          communityStatus === "error" && (
+
+          <div className="border-t border-slate-200 px-5 py-4 text-center text-xs font-semibold text-red-600">
+            Community data could not be loaded.
+            Select Community Exposure again to
+            retry.
           </div>
 
         )}

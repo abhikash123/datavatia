@@ -1,3 +1,8 @@
+__pycache__/
 
+# Downloaded boundary cache used by build_web_community_data.py.
+data/cb_2020_51_bg_500k.geojson
 
-web/public/data/community/virginia_community_profiles.geojson
+# Copied from node_modules by web/scripts/sync-maplibre-worker.js
+# on every `npm run dev` / `npm run build`.
+web/public/maplibre/
