@@ -1,19 +1,73 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Map, {
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import MapGL, {
   NavigationControl,
-  Popup,
+  ScaleControl,
   Marker,
   Source,
   Layer,
 } from "react-map-gl/maplibre";
-
-import type { LayerProps } from "react-map-gl/maplibre";
-import type { StyleSpecification } from "maplibre-gl";
+import type {
+  MapRef,
+  MapLayerMouseEvent,
+} from "react-map-gl/maplibre";
+import type { GeoJSONSource } from "maplibre-gl";
 import { setWorkerUrl } from "maplibre-gl";
 
 import "maplibre-gl/dist/maplibre-gl.css";
+
+import type {
+  AnalysisMode,
+  CommunityProps,
+  CommunityStatus,
+  DataCenter,
+  FacilityFilters,
+  ImpactRecord,
+  Selection,
+  VaStats,
+} from "./lib/types";
+import {
+  COMMUNITY_DATA_URL,
+  COMMUNITY_FILL_ID,
+  COMMUNITY_QUERY_ID,
+  COMMUNITY_SOURCE_ID,
+  FACILITY_CLUSTER_ID,
+  FACILITY_POINT_ID,
+  FACILITY_SOURCE_ID,
+  INITIAL_VIEW,
+  MAP_STYLE,
+  communityFillLayer,
+  communityOutlineLayer,
+  communityQueryLayer,
+  communitySelectLayer,
+  facilityClusterLayer,
+  facilityCountLayer,
+  facilityPointLayer,
+  facilitySelectLayer,
+} from "./lib/mapConfig";
+import {
+  facilitiesNear,
+  boundsOfCenters,
+} from "./lib/geo";
+import {
+  zoomForKind,
+  type GeocodeResult,
+} from "./lib/geocode";
+
+import SearchBar from "./components/SearchBar";
+import FacilityPopup from "./components/FacilityPopup";
+import ContextPanel from "./components/ContextPanel";
+import AnalyticsPanel from "./components/AnalyticsPanel";
+import InfrastructurePanel from "./components/InfrastructurePanel";
+import StatsHeader from "./components/StatsHeader";
+import MethodologyOverlay from "./components/MethodologyOverlay";
 
 // MapLibre normally finds its worker script relative to its own
 // module URL, which stops working once the library is bundled —
@@ -22,155 +76,63 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // (kept in sync by scripts/sync-maplibre-worker.js).
 setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
-type DataCenter = {
-  OBJECTID: number;
-  PEC_ID: string | null;
-  Locality: string | null;
-  Name: string | null;
-  Owner_Applicant: string | null;
-  Street_Address: string | null;
-  Acres: number | null;
-  Building_Sq_Ft: number | null;
-  MW_reported: number | null;
-  Construction_Type: string | null;
-  Build_Status: string | null;
-  Notes: string | null;
-  Source_link: string | null;
-  Lat: number | null;
-  Long: number | null;
-  Date_Updated: string | null;
-};
-
-type AnalysisMode =
-  | "none"
-  | "community"
-  | "development"
-  | "power"
-  | "impact";
-
-type CommunityStatus =
-  | "idle"
-  | "loading"
-  | "ready"
-  | "error";
-
-// Passed to the source as a URL so MapLibre's worker fetches
-// and parses it off the main thread. Handing the source a
-// pre-parsed object stalls the worker on a file this large.
-const COMMUNITY_DATA_URL =
-  "/data/community/virginia_community_profiles.geojson";
-
-const MAP_STYLE: StyleSpecification = {
-  version: 8,
-
-  sources: {
-    "esri-topo": {
-      type: "raster",
-      tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-      ],
-      tileSize: 256,
-      attribution:
-        "Tiles &copy; Esri — Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCAN, METI, TomTom",
-    },
-  },
-
-  layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: {
-        "background-color": "#d8ddd8",
-      },
-    },
-
-    {
-      id: "esri-topo-layer",
-      type: "raster",
-      source: "esri-topo",
-      minzoom: 0,
-      maxzoom: 19,
-      paint: {
-        "raster-opacity": 1,
-      },
-    },
-  ],
-};
-
-const communityFillLayer: LayerProps = {
-  id: "community-population-fill",
-  type: "fill",
-
-  paint: {
-    "fill-color": [
-      "interpolate",
-      ["linear"],
-      ["coalesce", ["get", "population"], 0],
-
-      0,
-      "#e8f5e9",
-
-      250,
-      "#c8e6c9",
-
-      500,
-      "#81c784",
-
-      1000,
-      "#4caf50",
-
-      2500,
-      "#ffeb3b",
-
-      5000,
-      "#ff9800",
-
-      10000,
-      "#f44336",
-
-      20000,
-      "#b71c1c",
-    ],
-
-    "fill-opacity": 0.48,
-  },
-};
-
-const communityOutlineLayer: LayerProps = {
-  id: "community-population-outline",
-  type: "line",
-
-  paint: {
-    "line-color": "#ffffff",
-    "line-width": 0.5,
-    "line-opacity": 0.35,
-  },
+const DEFAULT_FILTERS: FacilityFilters = {
+  showProposed: true,
+  showExisting: true,
+  locality: null,
+  query: "",
+  minMW: null,
 };
 
 export default function Home() {
-  const [dataCenters, setDataCenters] =
-    useState<DataCenter[]>([]);
+  const mapRef = useRef<MapRef | null>(null);
 
-  const [selected, setSelected] =
-    useState<DataCenter | null>(null);
+  const [dataCenters, setDataCenters] = useState<
+    DataCenter[]
+  >([]);
 
-  const [showProposed, setShowProposed] =
-    useState(true);
+  const [impactById, setImpactById] = useState<Map<
+    number,
+    ImpactRecord
+  > | null>(null);
 
-  const [showExisting, setShowExisting] =
-    useState(true);
+  const [stats, setStats] =
+    useState<VaStats | null>(null);
+
+  const [loading, setLoading] = useState(true);
 
   const [analysisMode, setAnalysisMode] =
     useState<AnalysisMode>("none");
-
-  const [loading, setLoading] =
-    useState(true);
 
   const [communityStatus, setCommunityStatus] =
     useState<CommunityStatus>("idle");
 
   const [communityAttempt, setCommunityAttempt] =
     useState(0);
+
+  const [filters, setFilters] =
+    useState<FacilityFilters>(DEFAULT_FILTERS);
+
+  const [selection, setSelection] =
+    useState<Selection | null>(null);
+
+  const [searchMarker, setSearchMarker] =
+    useState<GeocodeResult | null>(null);
+
+  const [methodologyOpen, setMethodologyOpen] =
+    useState(false);
+
+  const [mobilePanel, setMobilePanel] = useState<
+    "none" | "filters" | "analyze"
+  >("none");
+
+  const [cursor, setCursor] = useState<
+    string | undefined
+  >(undefined);
+
+  // ----------------------------------------------------------
+  // Data loading
+  // ----------------------------------------------------------
 
   useEffect(() => {
     async function loadData() {
@@ -185,9 +147,7 @@ export default function Home() {
           );
         }
 
-        const data = await response.json();
-
-        setDataCenters(data);
+        setDataCenters(await response.json());
       } catch (error) {
         console.error(
           "Failed to load data:",
@@ -198,29 +158,87 @@ export default function Home() {
       }
     }
 
+    async function loadImpact() {
+      try {
+        const response = await fetch(
+          "/data/impact_scores.json"
+        );
+
+        if (!response.ok) return;
+
+        const records =
+          (await response.json()) as ImpactRecord[];
+
+        setImpactById(
+          new Map(
+            records.map((r) => [r.OBJECTID, r])
+          )
+        );
+      } catch (error) {
+        console.error(
+          "Failed to load impact scores:",
+          error
+        );
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const response = await fetch(
+          "/data/community/virginia_stats.json"
+        );
+
+        if (!response.ok) return;
+
+        setStats(await response.json());
+      } catch {
+        // Header simply omits the extra stats.
+      }
+    }
+
     loadData();
+    loadImpact();
+    loadStats();
   }, []);
 
-  function selectAnalysis(
-    mode: AnalysisMode
-  ) {
-    if (
-      mode === "community" &&
-      (communityStatus === "idle" ||
-        communityStatus === "error")
-    ) {
-      // Remounts the source so a failed load is retried.
-      setCommunityAttempt(
-        (attempt) => attempt + 1
-      );
+  // ----------------------------------------------------------
+  // Community (choropleth) source state machine
+  // ----------------------------------------------------------
 
-      setCommunityStatus("loading");
+  const ensureCommunityData = useCallback(() => {
+    setCommunityStatus((status) => {
+      if (
+        status === "idle" ||
+        status === "error"
+      ) {
+        // Remounts the source so a failed load is retried.
+        setCommunityAttempt(
+          (attempt) => attempt + 1
+        );
+        return "loading";
+      }
+      return status;
+    });
+  }, []);
+
+  function selectAnalysis(mode: AnalysisMode) {
+    if (mode !== "none") {
+      ensureCommunityData();
     }
 
     setAnalysisMode(mode);
+    setMobilePanel("none");
   }
 
+  // ----------------------------------------------------------
+  // Facility filtering
+  // ----------------------------------------------------------
+
   const visibleCenters = useMemo(() => {
+    const query = filters.query
+      .trim()
+      .toLowerCase();
+
     return dataCenters.filter((center) => {
       if (
         typeof center.Lat !== "number" ||
@@ -231,44 +249,363 @@ export default function Home() {
 
       if (
         center.Build_Status === "Proposed" &&
-        !showProposed
+        !filters.showProposed
       ) {
         return false;
       }
 
       if (
         center.Build_Status === "Existing" &&
-        !showExisting
+        !filters.showExisting
       ) {
         return false;
       }
 
+      if (
+        filters.locality &&
+        center.Locality !== filters.locality
+      ) {
+        return false;
+      }
+
+      if (
+        filters.minMW !== null &&
+        (center.MW_reported ?? 0) <
+          filters.minMW
+      ) {
+        return false;
+      }
+
+      if (query) {
+        const haystack = `${center.Name ?? ""} ${
+          center.Owner_Applicant ?? ""
+        }`.toLowerCase();
+
+        if (!haystack.includes(query)) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [
-    dataCenters,
-    showProposed,
-    showExisting,
-  ]);
+  }, [dataCenters, filters]);
 
-  const proposedCount =
-    dataCenters.filter(
-      (d) => d.Build_Status === "Proposed"
-    ).length;
+  const localities = useMemo(() => {
+    const counts = new Map<string, number>();
 
-  const existingCount =
-    dataCenters.filter(
-      (d) => d.Build_Status === "Existing"
-    ).length;
+    for (const center of dataCenters) {
+      if (!center.Locality) continue;
+      counts.set(
+        center.Locality,
+        (counts.get(center.Locality) ?? 0) + 1
+      );
+    }
 
-  const totalMW = dataCenters.reduce(
-    (sum, center) =>
-      sum +
-      (typeof center.MW_reported === "number"
-        ? center.MW_reported
-        : 0),
-    0
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+  }, [dataCenters]);
+
+  function handleFiltersChange(
+    next: FacilityFilters
+  ) {
+    if (
+      next.locality &&
+      next.locality !== filters.locality
+    ) {
+      const bounds = boundsOfCenters(
+        dataCenters.filter(
+          (c) => c.Locality === next.locality
+        )
+      );
+
+      if (bounds) {
+        mapRef.current?.fitBounds(bounds, {
+          padding: 90,
+          maxZoom: 11.5,
+          duration: 900,
+        });
+      }
+    }
+
+    setFilters(next);
+  }
+
+  const facilityGeoJSON = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: visibleCenters.map((center) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [
+            center.Long as number,
+            center.Lat as number,
+          ],
+        },
+        properties: {
+          objectId: center.OBJECTID,
+          status:
+            center.Build_Status ?? "Unknown",
+        },
+      })),
+    }),
+    [visibleCenters]
   );
+
+  // ----------------------------------------------------------
+  // Map interactions
+  // ----------------------------------------------------------
+
+  const selectedFacility =
+    selection?.kind === "facility"
+      ? selection.center
+      : null;
+
+  const selectedGeoid =
+    selection?.kind === "community"
+      ? selection.props.GEOID
+      : null;
+
+  const interactiveLayerIds = useMemo(() => {
+    const ids = [
+      FACILITY_CLUSTER_ID,
+      FACILITY_POINT_ID,
+    ];
+
+    if (analysisMode !== "none") {
+      ids.push(COMMUNITY_FILL_ID);
+    }
+
+    return ids;
+  }, [analysisMode]);
+
+  const handleMapClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const features = event.features ?? [];
+      const map = mapRef.current?.getMap();
+
+      const cluster = features.find(
+        (f) =>
+          f.layer?.id === FACILITY_CLUSTER_ID
+      );
+
+      if (cluster && map) {
+        const clusterId =
+          cluster.properties?.cluster_id;
+        const source = map.getSource(
+          FACILITY_SOURCE_ID
+        ) as GeoJSONSource | undefined;
+
+        if (
+          source &&
+          typeof clusterId === "number" &&
+          "getClusterExpansionZoom" in source
+        ) {
+          Promise.resolve(
+            source.getClusterExpansionZoom(
+              clusterId
+            )
+          )
+            .then((zoom) => {
+              const [lng, lat] = (
+                cluster.geometry as unknown as {
+                  coordinates: [number, number];
+                }
+              ).coordinates;
+
+              map.easeTo({
+                center: [lng, lat],
+                zoom: zoom + 0.4,
+                duration: 500,
+              });
+            })
+            .catch(() => {});
+        }
+
+        return;
+      }
+
+      const point = features.find(
+        (f) => f.layer?.id === FACILITY_POINT_ID
+      );
+
+      if (point) {
+        const objectId =
+          point.properties?.objectId;
+
+        const center = dataCenters.find(
+          (c) => c.OBJECTID === objectId
+        );
+
+        if (center) {
+          setSelection({
+            kind: "facility",
+            center,
+          });
+
+          // Nudge the facility toward the lower half of the
+          // viewport so the popup clears the header.
+          if (
+            map &&
+            typeof center.Long === "number" &&
+            typeof center.Lat === "number"
+          ) {
+            map.easeTo({
+              center: [center.Long, center.Lat],
+              offset: [0, 150],
+              duration: 450,
+            });
+          }
+        }
+
+        return;
+      }
+
+      const community = features.find(
+        (f) => f.layer?.id === COMMUNITY_FILL_ID
+      );
+
+      if (community) {
+        setSelection({
+          kind: "community",
+          props:
+            community.properties as CommunityProps,
+        });
+      }
+    },
+    [dataCenters]
+  );
+
+  const handleMouseMove = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const next = event.features?.length
+        ? "pointer"
+        : undefined;
+
+      setCursor((prev) =>
+        prev === next ? prev : next
+      );
+    },
+    []
+  );
+
+  // ----------------------------------------------------------
+  // Search
+  // ----------------------------------------------------------
+
+  const runLocationLookup = useCallback(
+    (result: GeocodeResult) => {
+      const map = mapRef.current?.getMap();
+
+      let community: CommunityProps | null =
+        null;
+
+      if (map) {
+        try {
+          const point = map.project([
+            result.lng,
+            result.lat,
+          ]);
+
+          const found =
+            map.queryRenderedFeatures(point, {
+              layers: [COMMUNITY_QUERY_ID],
+            });
+
+          if (found.length) {
+            community = found[0]
+              .properties as CommunityProps;
+          }
+        } catch {
+          // Query layer not mounted yet; leave null.
+        }
+      }
+
+      const nearby = facilitiesNear(
+        dataCenters,
+        result.lng,
+        result.lat,
+        3
+      );
+
+      setSelection((prev) =>
+        prev?.kind === "search"
+          ? {
+              ...prev,
+              community,
+              nearby,
+              pending: false,
+            }
+          : prev
+      );
+    },
+    [dataCenters]
+  );
+
+  const handleSearchSelect = useCallback(
+    (result: GeocodeResult) => {
+      ensureCommunityData();
+      setSearchMarker(result);
+      setSelection({
+        kind: "search",
+        label: result.detail
+          ? `${result.label}, ${result.detail}`
+          : result.label,
+        lng: result.lng,
+        lat: result.lat,
+        community: null,
+        nearby: [],
+        pending: true,
+      });
+
+      const map = mapRef.current?.getMap();
+
+      if (!map) return;
+
+      map.flyTo({
+        center: [result.lng, result.lat],
+        zoom: Math.max(
+          map.getZoom(),
+          zoomForKind(result.kind)
+        ),
+        duration: 1600,
+      });
+
+      // The block-group lookup needs the community tiles for
+      // the destination rendered; idle fires once movement and
+      // source loading settle.
+      map.once("idle", () =>
+        runLocationLookup(result)
+      );
+    },
+    [ensureCommunityData, runLocationLookup]
+  );
+
+  const handleSearchClear = useCallback(() => {
+    setSearchMarker(null);
+    setSelection((prev) =>
+      prev?.kind === "search" ? null : prev
+    );
+  }, []);
+
+  function resetView() {
+    mapRef.current?.getMap().easeTo({
+      center: [
+        INITIAL_VIEW.longitude,
+        INITIAL_VIEW.latitude,
+      ],
+      zoom: INITIAL_VIEW.zoom,
+      duration: 900,
+    });
+  }
+
+  // Community source stays mounted once requested so mode
+  // switches and searches reuse the parsed data.
+  const communityMounted =
+    communityStatus !== "idle";
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-[#d8ddd8] text-slate-900">
@@ -279,19 +616,33 @@ export default function Home() {
 
       <div className="absolute inset-0">
 
-        <Map
-          initialViewState={{
-            longitude: -78.5,
-            latitude: 37.6,
-            zoom: 7,
+        <MapGL
+          ref={(instance) => {
+            mapRef.current = instance;
+
+            // Deliberate debugging handle; also used by the
+            // browser test suite.
+            if (typeof window !== "undefined") {
+              (
+                window as {
+                  __datavatiaMap?: unknown;
+                }
+              ).__datavatiaMap =
+                instance?.getMap();
+            }
           }}
-
+          initialViewState={INITIAL_VIEW}
           mapStyle={MAP_STYLE}
-
           style={{
             width: "100%",
             height: "100%",
           }}
+          cursor={cursor}
+          interactiveLayerIds={
+            interactiveLayerIds
+          }
+          onClick={handleMapClick}
+          onMouseMove={handleMouseMove}
 
           onSourceData={(event) => {
             // Removing a source also fires sourcedata with
@@ -299,10 +650,10 @@ export default function Home() {
             // source may mark the data ready.
             if (
               event.sourceId ===
-                "community-source" &&
+                COMMUNITY_SOURCE_ID &&
               event.isSourceLoaded &&
               event.target.getSource(
-                "community-source"
+                COMMUNITY_SOURCE_ID
               )
             ) {
               setCommunityStatus("ready");
@@ -313,7 +664,7 @@ export default function Home() {
             if (
               (event as { sourceId?: string })
                 .sourceId ===
-              "community-source"
+              COMMUNITY_SOURCE_ID
             ) {
               console.error(
                 "Failed to load community data:",
@@ -335,235 +686,133 @@ export default function Home() {
             showCompass={true}
           />
 
+          <ScaleControl position="bottom-left" />
+
           {/* ================================================== */}
-          {/* COMMUNITY EXPOSURE LAYER */}
+          {/* COMMUNITY ANALYSIS LAYERS */}
           {/* ================================================== */}
 
-          {/* The source stays mounted once requested so that
-              leaving and re-entering community mode reuses the
-              already-parsed data instead of refetching 6.9MB;
-              only the layers toggle with the mode. */}
-          {communityStatus !== "idle" && (
+          {communityMounted && (
+            <Source
+              key={communityAttempt}
+              id={COMMUNITY_SOURCE_ID}
+              type="geojson"
+              data={COMMUNITY_DATA_URL}
+            >
 
-              <Source
-                key={communityAttempt}
-                id="community-source"
-                type="geojson"
-                data={COMMUNITY_DATA_URL}
+              {/* Always queryable (for search lookups), never
+                  visible. */}
+              <Layer {...communityQueryLayer} />
+
+              {analysisMode !== "none" && (
+                <Layer
+                  {...communityFillLayer(
+                    analysisMode
+                  )}
+                />
+              )}
+
+              {analysisMode !== "none" && (
+                <Layer
+                  {...communityOutlineLayer}
+                />
+              )}
+
+              {analysisMode !== "none" && (
+                <Layer
+                  {...communitySelectLayer(
+                    selectedGeoid
+                  )}
+                />
+              )}
+
+            </Source>
+          )}
+
+          {/* ================================================== */}
+          {/* FACILITY LAYERS (CLUSTERED) */}
+          {/* ================================================== */}
+
+          <Source
+            id={FACILITY_SOURCE_ID}
+            type="geojson"
+            data={facilityGeoJSON}
+            cluster={true}
+            clusterMaxZoom={11}
+            clusterRadius={42}
+            clusterProperties={{
+              proposed_count: [
+                "+",
+                [
+                  "case",
+                  [
+                    "==",
+                    ["get", "status"],
+                    "Proposed",
+                  ],
+                  1,
+                  0,
+                ],
+              ],
+            }}
+          >
+            <Layer {...facilityClusterLayer} />
+            <Layer {...facilityCountLayer} />
+            <Layer {...facilityPointLayer} />
+            <Layer
+              {...facilitySelectLayer(
+                selectedFacility?.OBJECTID ??
+                  null
+              )}
+            />
+          </Source>
+
+          {/* ================================================== */}
+          {/* SEARCH MARKER */}
+          {/* ================================================== */}
+
+          {searchMarker && (
+            <Marker
+              longitude={searchMarker.lng}
+              latitude={searchMarker.lat}
+              anchor="bottom"
+            >
+              <div
+                aria-hidden="true"
+                className="flex flex-col items-center"
               >
-
-                {analysisMode ===
-                  "community" && (
-                  <Layer
-                    {...communityFillLayer}
-                  />
-                )}
-
-                {analysisMode ===
-                  "community" && (
-                  <Layer
-                    {...communityOutlineLayer}
-                  />
-                )}
-
-              </Source>
-            )}
-
-          {/* ================================================== */}
-          {/* DATA CENTER MARKERS */}
-          {/* ================================================== */}
-
-          {visibleCenters.map((center) => {
-            const proposed =
-              center.Build_Status ===
-              "Proposed";
-
-            return (
-              <Marker
-                key={center.OBJECTID}
-                longitude={center.Long!}
-                latitude={center.Lat!}
-                anchor="center"
-              >
-
-                <button
-                  type="button"
-                  aria-label={
-                    center.Name ??
-                    "Data center"
-                  }
-
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelected(center);
-                  }}
-
-                  className="group relative"
-                >
-
-                  <span
-                    className={`absolute -inset-2 rounded-full blur-sm ${
-                      proposed
-                        ? "bg-red-500/30"
-                        : "bg-orange-500/30"
-                    }`}
-                  />
-
-                  <span
-                    className={`absolute -inset-[3px] rounded-full border ${
-                      proposed
-                        ? "border-red-500"
-                        : "border-orange-500"
-                    }`}
-                  />
-
-                  <span
-                    className={`relative block h-3 w-3 rounded-full border-2 border-white shadow-xl transition-transform group-hover:scale-150 ${
-                      proposed
-                        ? "bg-red-600"
-                        : "bg-orange-500"
-                    }`}
-                  />
-
-                </button>
-
-              </Marker>
-            );
-          })}
-
-          {/* ================================================== */}
-          {/* POPUP */}
-          {/* ================================================== */}
-
-          {selected &&
-            typeof selected.Long ===
-              "number" &&
-            typeof selected.Lat ===
-              "number" && (
-
-              <Popup
-                longitude={selected.Long}
-                latitude={selected.Lat}
-                anchor="bottom"
-                closeButton={true}
-                closeOnClick={false}
-                onClose={() =>
-                  setSelected(null)
-                }
-                maxWidth="360px"
-              >
-
-                <div className="w-[300px] p-2 text-slate-900">
-
-                  <div
-                    className={`mb-2 text-[10px] font-bold uppercase tracking-[0.2em] ${
-                      selected.Build_Status ===
-                      "Proposed"
-                        ? "text-red-600"
-                        : "text-orange-600"
-                    }`}
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 shadow-xl ring-2 ring-white">
+                  <svg
+                    className="h-4 w-4 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
                   >
-                    {selected.Build_Status}
-                  </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+                    />
+                  </svg>
+                </span>
+                <span className="-mt-px h-2.5 w-0.5 bg-slate-900" />
+              </div>
+            </Marker>
+          )}
 
-                  <h2 className="mb-4 text-lg font-bold leading-tight">
-                    {selected.Name ??
-                      "Unnamed Facility"}
-                  </h2>
+          {/* ================================================== */}
+          {/* FACILITY POPUP */}
+          {/* ================================================== */}
 
-                  <div className="space-y-3 text-sm">
+          {selectedFacility && (
+            <FacilityPopup
+              center={selectedFacility}
+              onClose={() => setSelection(null)}
+            />
+          )}
 
-                    <div>
-                      <div className="text-xs text-slate-500">
-                        Locality
-                      </div>
-
-                      <div className="font-semibold">
-                        {selected.Locality ??
-                          "Unknown"}
-                      </div>
-                    </div>
-
-                    {selected.Owner_Applicant && (
-                      <div>
-                        <div className="text-xs text-slate-500">
-                          Developer / Applicant
-                        </div>
-
-                        <div className="font-semibold">
-                          {
-                            selected.Owner_Applicant
-                          }
-                        </div>
-                      </div>
-                    )}
-
-                    {selected.Street_Address && (
-                      <div>
-                        <div className="text-xs text-slate-500">
-                          Address
-                        </div>
-
-                        <div className="font-semibold">
-                          {
-                            selected.Street_Address
-                          }
-                        </div>
-                      </div>
-                    )}
-
-                    {selected.MW_reported !==
-                      null && (
-                      <div>
-                        <div className="text-xs text-slate-500">
-                          Reported Power
-                        </div>
-
-                        <div className="font-semibold">
-                          {selected.MW_reported.toLocaleString()}{" "}
-                          MW
-                        </div>
-                      </div>
-                    )}
-
-                    {selected.Building_Sq_Ft !==
-                      null && (
-                      <div>
-                        <div className="text-xs text-slate-500">
-                          Building Area
-                        </div>
-
-                        <div className="font-semibold">
-                          {Number(
-                            selected.Building_Sq_Ft
-                          ).toLocaleString()}{" "}
-                          sq ft
-                        </div>
-                      </div>
-                    )}
-
-                    {selected.Construction_Type && (
-                      <div>
-                        <div className="text-xs text-slate-500">
-                          Construction
-                        </div>
-
-                        <div className="font-semibold">
-                          {
-                            selected.Construction_Type
-                          }
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-
-                </div>
-
-              </Popup>
-            )}
-
-        </Map>
+        </MapGL>
 
       </div>
 
@@ -571,404 +820,210 @@ export default function Home() {
       {/* HEADER */}
       {/* ================================================== */}
 
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-30">
-
-        <div className="flex items-center justify-between border-b border-slate-300/60 bg-white/92 px-7 py-4 shadow-md backdrop-blur">
-
-          <div>
-
-            <h1 className="text-xl font-black tracking-tight text-slate-900">
-              DATAVATIA
-            </h1>
-
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-500">
-              Mapping the hidden cost of data infrastructure
-            </p>
-
-          </div>
-
-          <div className="pointer-events-auto flex items-center gap-8">
-
-            <div>
-              <div className="text-[9px] font-bold tracking-widest text-slate-500">
-                FACILITIES
-              </div>
-
-              <div className="text-sm font-bold">
-                {dataCenters.length}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[9px] font-bold tracking-widest text-slate-500">
-                PROPOSED
-              </div>
-
-              <div className="text-sm font-bold text-red-600">
-                {proposedCount}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[9px] font-bold tracking-widest text-slate-500">
-                EXISTING
-              </div>
-
-              <div className="text-sm font-bold text-orange-600">
-                {existingCount}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[9px] font-bold tracking-widest text-slate-500">
-                REPORTED POWER
-              </div>
-
-              <div className="text-sm font-bold">
-                {totalMW.toLocaleString()} MW
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-
-      </header>
+      <StatsHeader
+        dataCenters={dataCenters}
+        stats={stats}
+        onOpenMethodology={() =>
+          setMethodologyOpen(true)
+        }
+      />
 
       {/* ================================================== */}
-      {/* LEFT PANEL */}
+      {/* SEARCH */}
       {/* ================================================== */}
 
-      <aside className="absolute left-5 top-24 z-30 w-64 rounded-2xl border border-slate-300/80 bg-white/95 p-5 shadow-2xl backdrop-blur">
+      <div className="pointer-events-none absolute left-1/2 top-[4.4rem] z-30 w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 sm:top-[5.9rem]">
+        <SearchBar
+          onSelect={handleSearchSelect}
+          onClear={handleSearchClear}
+        />
+      </div>
 
-        <div className="mb-5">
+      {/* ================================================== */}
+      {/* LEFT PANEL (desktop) */}
+      {/* ================================================== */}
 
-          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-            VIRGINIA
-          </div>
+      <div className="absolute left-5 top-36 z-20 hidden md:block">
+        <InfrastructurePanel
+          filters={filters}
+          localities={localities}
+          visibleCount={visibleCenters.length}
+          totalCount={dataCenters.length}
+          onChange={handleFiltersChange}
+        />
+      </div>
 
-          <h2 className="mt-1 text-lg font-bold">
-            Infrastructure
-          </h2>
+      {/* ================================================== */}
+      {/* RIGHT COLUMN (desktop) */}
+      {/* ================================================== */}
 
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Explore data center development
-            across Virginia.
-          </p>
+      <div className="pointer-events-none absolute right-5 top-24 z-20 hidden max-h-[calc(100vh-7rem)] w-72 flex-col gap-3 overflow-y-auto md:flex">
 
-        </div>
+        <AnalyticsPanel
+          analysisMode={analysisMode}
+          communityStatus={communityStatus}
+          onSelect={selectAnalysis}
+        />
 
-        {/* PROPOSED */}
+        {selection && (
+          <ContextPanel
+            selection={selection}
+            impact={
+              selection.kind === "facility"
+                ? (impactById?.get(
+                    selection.center.OBJECTID
+                  ) ?? null)
+                : null
+            }
+            onDismiss={() => setSelection(null)}
+          />
+        )}
+
+      </div>
+
+      {/* ================================================== */}
+      {/* MOBILE PANELS */}
+      {/* ================================================== */}
+
+      <div className="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 gap-2 md:hidden">
 
         <button
           type="button"
           onClick={() =>
-            setShowProposed(
-              !showProposed
+            setMobilePanel((p) =>
+              p === "filters"
+                ? "none"
+                : "filters"
             )
           }
-
-          className="mb-2 flex w-full items-center justify-between rounded-xl px-3 py-3 hover:bg-slate-100"
+          className="rounded-full border border-slate-300 bg-white/95 px-4 py-2 text-xs font-bold text-slate-700 shadow-xl backdrop-blur focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500"
         >
-
-          <div className="flex items-center gap-3">
-
-            <span
-              className={`h-3 w-3 rounded-full ${
-                showProposed
-                  ? "bg-red-600"
-                  : "bg-slate-300"
-              }`}
-            />
-
-            <span className="text-sm font-semibold">
-              Proposed
-            </span>
-
-          </div>
-
-          <span className="text-[10px] font-bold text-slate-400">
-            {showProposed
-              ? "ON"
-              : "OFF"}
-          </span>
-
+          Filters
         </button>
-
-        {/* EXISTING */}
 
         <button
           type="button"
           onClick={() =>
-            setShowExisting(
-              !showExisting
+            setMobilePanel((p) =>
+              p === "analyze"
+                ? "none"
+                : "analyze"
             )
           }
-
-          className="flex w-full items-center justify-between rounded-xl px-3 py-3 hover:bg-slate-100"
+          className="rounded-full border border-slate-300 bg-white/95 px-4 py-2 text-xs font-bold text-slate-700 shadow-xl backdrop-blur focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500"
         >
-
-          <div className="flex items-center gap-3">
-
-            <span
-              className={`h-3 w-3 rounded-full ${
-                showExisting
-                  ? "bg-orange-500"
-                  : "bg-slate-300"
-              }`}
-            />
-
-            <span className="text-sm font-semibold">
-              Existing
-            </span>
-
-          </div>
-
-          <span className="text-[10px] font-bold text-slate-400">
-            {showExisting
-              ? "ON"
-              : "OFF"}
-          </span>
-
+          Analyze
         </button>
 
-        {/* LEGEND */}
+        <button
+          type="button"
+          onClick={() => {
+            setMethodologyOpen(true);
+            setMobilePanel("none");
+          }}
+          className="rounded-full border border-slate-300 bg-white/95 px-4 py-2 text-xs font-bold text-slate-700 shadow-xl backdrop-blur focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500"
+        >
+          About
+        </button>
 
-        <div className="mt-5 border-t border-slate-200 pt-4">
+      </div>
 
-          <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            Legend
-          </div>
-
-          <div className="space-y-2 text-xs text-slate-600">
-
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
-              Proposed
+      {mobilePanel !== "none" && (
+        <div
+          className="absolute inset-0 z-30 bg-slate-900/30 md:hidden"
+          onClick={() => setMobilePanel("none")}
+        >
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[70vh] overflow-y-auto rounded-t-2xl bg-white/98 p-4 pb-20 shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="mx-auto w-fit">
+              {mobilePanel === "filters" ? (
+                <InfrastructurePanel
+                  filters={filters}
+                  localities={localities}
+                  visibleCount={
+                    visibleCenters.length
+                  }
+                  totalCount={
+                    dataCenters.length
+                  }
+                  onChange={handleFiltersChange}
+                />
+              ) : (
+                <AnalyticsPanel
+                  analysisMode={analysisMode}
+                  communityStatus={
+                    communityStatus
+                  }
+                  onSelect={selectAnalysis}
+                />
+              )}
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
-              Existing
-            </div>
-
           </div>
-
         </div>
+      )}
 
-      </aside>
+      {/* Mobile context sheet */}
+      {selection && (
+        <div className="absolute inset-x-3 bottom-16 z-30 md:hidden">
+          <div className="mx-auto w-fit">
+            <ContextPanel
+              selection={selection}
+              impact={
+                selection.kind === "facility"
+                  ? (impactById?.get(
+                      selection.center.OBJECTID
+                    ) ?? null)
+                  : null
+              }
+              onDismiss={() =>
+                setSelection(null)
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {/* ================================================== */}
-      {/* ANALYTICS PANEL */}
+      {/* RESET VIEW */}
       {/* ================================================== */}
 
-      <aside className="absolute right-5 top-24 z-30 w-72 rounded-2xl border border-slate-300/80 bg-white/95 shadow-2xl backdrop-blur">
+      <button
+        type="button"
+        aria-label="Reset map view to Virginia"
+        onClick={resetView}
+        className="absolute bottom-28 right-[9px] z-20 rounded-lg border border-slate-300 bg-white p-1.5 text-slate-600 shadow-md hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500"
+      >
+        <svg
+          aria-hidden="true"
+          className="h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 12a9 9 0 1018 0 9 9 0 00-18 0zm9-5v5l3 3"
+          />
+        </svg>
+      </button>
 
-        <div className="border-b border-slate-200 px-5 py-4">
+      {/* ================================================== */}
+      {/* METHODOLOGY */}
+      {/* ================================================== */}
 
-          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-            DATAVATIA ANALYTICS
-          </div>
-
-          <h2 className="mt-1 text-lg font-bold">
-            Analyze Virginia
-          </h2>
-
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Turn infrastructure data into
-            measurable community impacts.
-          </p>
-
-        </div>
-
-        <div className="space-y-1 p-3">
-
-          {/* COMMUNITY */}
-
-          <button
-            type="button"
-            onClick={() =>
-              selectAnalysis("community")
-            }
-
-            className={`w-full rounded-xl px-4 py-3 text-left transition ${
-              analysisMode === "community"
-                ? "bg-green-700 text-white"
-                : "hover:bg-slate-100"
-            }`}
-          >
-
-            <div className="text-sm font-bold">
-              Community Exposure
-            </div>
-
-            <div
-              className={`mt-1 text-[11px] ${
-                analysisMode === "community"
-                  ? "text-green-100"
-                  : "text-slate-500"
-              }`}
-            >
-              Population surrounding facilities
-            </div>
-
-          </button>
-
-          {/* DEVELOPMENT */}
-
-          <button
-            type="button"
-            onClick={() =>
-              selectAnalysis("development")
-            }
-
-            className={`w-full rounded-xl px-4 py-3 text-left transition ${
-              analysisMode === "development"
-                ? "bg-slate-900 text-white"
-                : "hover:bg-slate-100"
-            }`}
-          >
-
-            <div className="text-sm font-bold">
-              Development Pressure
-            </div>
-
-            <div className="mt-1 text-[11px] text-slate-500">
-              Facility density and proposals
-            </div>
-
-          </button>
-
-          {/* POWER */}
-
-          <button
-            type="button"
-            onClick={() =>
-              selectAnalysis("power")
-            }
-
-            className={`w-full rounded-xl px-4 py-3 text-left transition ${
-              analysisMode === "power"
-                ? "bg-slate-900 text-white"
-                : "hover:bg-slate-100"
-            }`}
-          >
-
-            <div className="text-sm font-bold">
-              Power Infrastructure
-            </div>
-
-            <div className="mt-1 text-[11px] text-slate-500">
-              Reported electrical capacity
-            </div>
-
-          </button>
-
-          {/* IMPACT */}
-
-          <button
-            type="button"
-            onClick={() =>
-              selectAnalysis("impact")
-            }
-
-            className={`w-full rounded-xl px-4 py-3 text-left transition ${
-              analysisMode === "impact"
-                ? "bg-slate-900 text-white"
-                : "hover:bg-slate-100"
-            }`}
-          >
-
-            <div className="text-sm font-bold">
-              Impact Score
-            </div>
-
-            <div className="mt-1 text-[11px] text-slate-500">
-              Composite community pressure
-            </div>
-
-          </button>
-
-          {/* CLEAR */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setAnalysisMode("none")
-            }
-
-            className="w-full rounded-xl px-4 py-2 text-center text-[11px] font-bold text-slate-400 hover:bg-slate-100"
-          >
-            Clear analysis
-          </button>
-
-        </div>
-
-        {/* COMMUNITY LEGEND */}
-
-        {analysisMode === "community" &&
-          communityStatus === "ready" && (
-
-          <div className="border-t border-slate-200 px-5 py-4">
-
-            <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Population density
-            </div>
-
-            <div className="space-y-2 text-xs">
-
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded bg-[#e8f5e9]" />
-                <span>Low</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded bg-[#81c784]" />
-                <span>Moderate</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded bg-[#ff9800]" />
-                <span>High</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded bg-[#b71c1c]" />
-                <span>Very high</span>
-              </div>
-
-            </div>
-
-            <p className="mt-4 text-[11px] leading-5 text-slate-500">
-              Census block groups are shaded
-              according to population. Darker
-              areas represent larger populations.
-            </p>
-
-          </div>
-        )}
-
-        {analysisMode === "community" &&
-          communityStatus === "loading" && (
-
-          <div className="border-t border-slate-200 px-5 py-4 text-center text-xs text-slate-500">
-            Loading community data...
-          </div>
-
-        )}
-
-        {analysisMode === "community" &&
-          communityStatus === "error" && (
-
-          <div className="border-t border-slate-200 px-5 py-4 text-center text-xs font-semibold text-red-600">
-            Community data could not be loaded.
-            Select Community Exposure again to
-            retry.
-          </div>
-
-        )}
-
-      </aside>
+      {methodologyOpen && (
+        <MethodologyOverlay
+          onClose={() =>
+            setMethodologyOpen(false)
+          }
+        />
+      )}
 
       {/* ================================================== */}
       {/* LOADING */}

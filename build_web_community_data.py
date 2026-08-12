@@ -59,6 +59,15 @@ OUTPUT = (
     / "virginia_community_profiles.geojson"
 )
 
+STATS_OUTPUT = (
+    PROJECT_DIR
+    / "web"
+    / "public"
+    / "data"
+    / "community"
+    / "virginia_stats.json"
+)
+
 # Properties served to the browser, and the rounding applied
 # to keep the file small. The map colors by "population";
 # the remaining fields support popups and future analysis
@@ -207,6 +216,7 @@ def main():
                 profile["development_pressure_score"], 2
             ),
             "impact_level": profile["impact_level"],
+            "data_confidence": profile["data_confidence"],
         }
 
         geometry = feature["geometry"]
@@ -267,6 +277,48 @@ def main():
         f"Saved {len(features):,} features "
         f"({size_mb:.1f} MB) to:\n{OUTPUT}"
     )
+
+    # --------------------------------------------------------
+    # Statewide aggregates for the header statistics bar.
+    # Computed over every profile row (including the water-only
+    # block groups that have no cartographic geometry).
+    # --------------------------------------------------------
+
+    print("\nSaving statewide statistics...")
+
+    near = [
+        p
+        for p in profiles.values()
+        if (num(p["data_centers_3mi"]) or 0) > 0
+    ]
+
+    pressures = [
+        num(p["development_pressure_score"]) or 0
+        for p in profiles.values()
+    ]
+
+    mw_values = [
+        num(p["reported_MW_3mi"]) or 0
+        for p in profiles.values()
+    ]
+
+    stats = {
+        "communities_total": len(profiles),
+        "communities_near_facilities": len(near),
+        "population_near_facilities": int(
+            sum(num(p["population"]) or 0 for p in near)
+        ),
+        "avg_development_pressure": round(
+            sum(pressures) / len(pressures), 1
+        ),
+        "max_reported_MW_3mi": round(max(mw_values), 1),
+    }
+
+    with open(STATS_OUTPUT, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2)
+
+    print(f"Saved to:\n{STATS_OUTPUT}")
+    print(f"Stats: {stats}")
 
     print("\n" + "=" * 60)
     print("WEB COMMUNITY DATA COMPLETE")
