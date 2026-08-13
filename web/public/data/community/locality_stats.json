@@ -330,6 +330,21 @@
   ]
  },
  {
+  "name": "Wythe County",
+  "fips": "51197",
+  "facilities": 2,
+  "proposed": 2,
+  "existing": 0,
+  "reported_MW": 1000.0,
+  "development_pressure": 48.7,
+  "bounds": [
+   -81.3794,
+   36.7576,
+   -80.7405,
+   37.0733
+  ]
+ },
+ {
   "name": "Montgomery County",
   "fips": "51121",
   "facilities": 1,
@@ -465,21 +480,6 @@
   ]
  },
  {
-  "name": "Wyth County",
-  "fips": "51197",
-  "facilities": 1,
-  "proposed": 1,
-  "existing": 0,
-  "reported_MW": 0.0,
-  "development_pressure": 48.7,
-  "bounds": [
-   -81.3794,
-   36.7576,
-   -80.7405,
-   37.0733
-  ]
- },
- {
   "name": "Fluvanna County",
   "fips": "51065",
   "facilities": 1,
@@ -492,21 +492,6 @@
    37.6903,
    -78.0625,
    38.0065
-  ]
- },
- {
-  "name": "Wythe County",
-  "fips": "51197",
-  "facilities": 1,
-  "proposed": 1,
-  "existing": 0,
-  "reported_MW": 1000.0,
-  "development_pressure": 48.7,
-  "bounds": [
-   -81.3794,
-   36.7576,
-   -80.7405,
-   37.0733
   ]
  },
  {

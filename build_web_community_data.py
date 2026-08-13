@@ -150,6 +150,24 @@ def round_coords(coords):
     return [round_coords(part) for part in coords]
 
 
+def zero_anchored_percentile(values):
+    """Average-rank percentile (0-100) per value, except that
+    zeros always score 0. Most block groups have no facilities,
+    reported MW, or proposals within 3 miles; plain tie-averaged
+    ranking would hand that zero group mid-range percentiles and
+    show nonzero component contributions beside raw zeros in the
+    community profile. Nonzero values keep their tie-averaged
+    percentile against the full set, so they still read as
+    "percent of communities at or below this value"."""
+
+    return [
+        p if v > 0 else 0.0
+        for v, p in zip(
+            values, avg_rank_percentile(values)
+        )
+    ]
+
+
 def avg_rank_percentile(values):
     """Average-rank percentile (0-100) per value, mirroring
     pandas rank(pct=True, method="average") as used by
@@ -317,7 +335,10 @@ def main():
             num(profiles[g][metric]) or 0 for g in geoids
         ]
         component_pct[metric] = dict(
-            zip(geoids, avg_rank_percentile(values))
+            zip(
+                geoids,
+                zero_anchored_percentile(values),
+            )
         )
 
     impact = {}
@@ -381,7 +402,11 @@ def main():
         lat = facility.get("Lat")
         lng = facility.get("Long")
 
-        if not name or not isinstance(lat, (int, float)):
+        if (
+            not name
+            or not isinstance(lat, (int, float))
+            or not isinstance(lng, (int, float))
+        ):
             continue
 
         entry = localities.setdefault(

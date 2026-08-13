@@ -43,6 +43,21 @@ df = df[fields]
 
 
 # ------------------------------------------------------------
+# Normalize known typos in the source dataset so locality
+# grouping and filtering see one consistent name.
+# ------------------------------------------------------------
+
+LOCALITY_FIXES = {
+    "Wyth County": "Wythe County",
+}
+
+if "Locality" in df.columns:
+    df["Locality"] = df["Locality"].replace(
+        LOCALITY_FIXES
+    )
+
+
+# ------------------------------------------------------------
 # Convert every pandas NaN / infinity value into JSON null
 # ------------------------------------------------------------
 

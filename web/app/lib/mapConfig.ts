@@ -70,6 +70,21 @@ export const MAP_STYLE: StyleSpecification = {
         "raster-opacity": 1,
       },
     },
+
+    // Invisible anchors that pin runtime layers to a
+    // deterministic stacking order (analysis polygons below
+    // the 3-mile radius, radius below facilities) no matter
+    // which feature the user activates first.
+    {
+      id: "anchor-radius",
+      type: "background",
+      paint: { "background-opacity": 0 },
+    },
+    {
+      id: "anchor-facilities",
+      type: "background",
+      paint: { "background-opacity": 0 },
+    },
   ],
 };
 
@@ -232,6 +247,7 @@ export function communityFillLayer(
   return {
     id: COMMUNITY_FILL_ID,
     type: "fill",
+    beforeId: "anchor-radius",
     paint: {
       // Cast: the expression trees above are typed loosely so
       // MODE_CONFIG stays readable.
@@ -245,6 +261,7 @@ export function communityFillLayer(
 export const communityOutlineLayer: LayerProps = {
   id: COMMUNITY_OUTLINE_ID,
   type: "line",
+  beforeId: "anchor-radius",
   paint: {
     "line-color": "#ffffff",
     "line-width": 0.5,
@@ -257,6 +274,7 @@ export const communityOutlineLayer: LayerProps = {
 export const communityQueryLayer: LayerProps = {
   id: COMMUNITY_QUERY_ID,
   type: "fill",
+  beforeId: "anchor-radius",
   paint: {
     "fill-color": "#000000",
     "fill-opacity": 0,
@@ -269,6 +287,7 @@ export function communitySelectLayer(
   return {
     id: COMMUNITY_SELECT_ID,
     type: "line",
+    beforeId: "anchor-radius",
     filter: [
       "==",
       ["get", "GEOID"],
@@ -372,6 +391,7 @@ export const facilityPointLayer: LayerProps = {
 export const radiusFillLayer: LayerProps = {
   id: RADIUS_FILL_ID,
   type: "fill",
+  beforeId: "anchor-facilities",
   paint: {
     "fill-color": "#0f172a",
     "fill-opacity": 0.08,
@@ -381,6 +401,7 @@ export const radiusFillLayer: LayerProps = {
 export const radiusLineLayer: LayerProps = {
   id: RADIUS_LINE_ID,
   type: "line",
+  beforeId: "anchor-facilities",
   paint: {
     "line-color": "#0f172a",
     "line-width": 2,

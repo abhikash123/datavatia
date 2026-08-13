@@ -198,10 +198,18 @@ export default function MethodologyOverlay({
               as a component so no metric is
               double-counted (that score already
               blends density, proposed
-              development, and power). Each
-              community profile shows the four
-              weighted contributions, which sum
-              to the score, so every value is
+              development, and power). A metric
+              equal to zero scores zero for its
+              component — a community with no
+              facilities within 3 miles
+              contributes nothing on the
+              density, power, or proposed
+              components; nonzero values are
+              percentile-ranked against all
+              communities. Each community
+              profile shows the four weighted
+              contributions, which sum to the
+              score, so every value is
               reproducible from the published
               data.
             </p>
