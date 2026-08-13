@@ -27,6 +27,10 @@ export const FACILITY_COUNT_ID = "facility-cluster-count";
 export const FACILITY_POINT_ID = "facility-points";
 export const FACILITY_SELECT_ID = "facility-selected";
 
+export const RADIUS_SOURCE_ID = "facility-radius";
+export const RADIUS_FILL_ID = "facility-radius-fill";
+export const RADIUS_LINE_ID = "facility-radius-line";
+
 export const MAP_STYLE: StyleSpecification = {
   version: 8,
 
@@ -195,11 +199,7 @@ export const MODE_CONFIG: Record<
     fillColor: [
       "interpolate",
       ["linear"],
-      [
-        "coalesce",
-        ["get", "development_pressure_score"],
-        0,
-      ],
+      ["coalesce", ["get", "impact_score"], 0],
       0,
       "#f3e5f5",
       20,
@@ -215,14 +215,14 @@ export const MODE_CONFIG: Record<
       100,
       "#38006b",
     ],
-    legendTitle: "Impact level (proxy)",
+    legendTitle: "Impact score (composite)",
     legend: [
       { color: "#f3e5f5", label: "0 – 20 (lower)" },
       { color: "#ce93d8", label: "40 – 60" },
       { color: "#8e24aa", label: "75 – 90" },
       { color: "#38006b", label: "90 – 100 (highest)" },
     ],
-    note: "Proxy metric: currently visualizes the development pressure score, not a validated composite impact model. See Data & Methodology.",
+    note: "Weighted percentiles: 30% population exposure + 30% facility density + 20% reported power + 20% proposed development, each within 3 miles. A decision-support metric, not a causal model — see Data & Methodology.",
   },
 };
 
@@ -363,6 +363,29 @@ export const facilityPointLayer: LayerProps = {
     ],
     "circle-stroke-width": 1.5,
     "circle-stroke-color": "#ffffff",
+  },
+};
+
+// 3-mile radius around a selected facility — deliberately
+// distinct from the choropleth: near-transparent slate fill
+// with a dashed outline.
+export const radiusFillLayer: LayerProps = {
+  id: RADIUS_FILL_ID,
+  type: "fill",
+  paint: {
+    "fill-color": "#0f172a",
+    "fill-opacity": 0.08,
+  },
+};
+
+export const radiusLineLayer: LayerProps = {
+  id: RADIUS_LINE_ID,
+  type: "line",
+  paint: {
+    "line-color": "#0f172a",
+    "line-width": 2,
+    "line-dasharray": [2, 2],
+    "line-opacity": 0.75,
   },
 };
 

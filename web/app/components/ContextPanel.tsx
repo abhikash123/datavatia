@@ -15,6 +15,9 @@ type Props = {
   selection: Selection;
   impact: ImpactRecord | null;
   onDismiss: () => void;
+  /** 3-mile radius toggle for facility selections. */
+  radiusShown?: boolean;
+  onToggleRadius?: () => void;
 };
 
 function Metric({
@@ -119,7 +122,7 @@ function CommunityMetrics({
       />
       <Metric
         label="Impact level"
-        hint="Proxy from development pressure"
+        hint="From development pressure"
         value={
           <LevelBadge
             level={props.impact_level}
@@ -130,6 +133,51 @@ function CommunityMetrics({
         label="Data confidence"
         value={props.data_confidence ?? "—"}
       />
+
+      {props.impact_score !== null && (
+        <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-xs font-bold text-slate-600">
+              Impact score
+            </span>
+            <span className="text-sm font-black text-slate-900">
+              {Math.round(props.impact_score)}{" "}
+              <span className="text-[10px] font-semibold text-slate-400">
+                / 100
+              </span>
+            </span>
+          </div>
+
+          <div className="mt-2 space-y-1 text-[11px] text-slate-500">
+            {(
+              [
+                ["Population exposure", props.imp_pop],
+                ["Facility density", props.imp_density],
+                ["Power infrastructure", props.imp_power],
+                ["Proposed development", props.imp_proposed],
+              ] as const
+            ).map(([label, value]) => (
+              <div
+                key={label}
+                className="flex justify-between"
+              >
+                <span>{label}</span>
+                <span className="font-semibold text-slate-700">
+                  {value === null
+                    ? "—"
+                    : value.toFixed(1)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-2 text-[10px] leading-4 text-slate-400">
+            Weighted percentile components; they
+            sum to the score. See Data &amp;
+            Methodology.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -138,6 +186,8 @@ export default function ContextPanel({
   selection,
   impact,
   onDismiss,
+  radiusShown,
+  onToggleRadius,
 }: Props) {
   let heading = "";
   let subheading: string | null = null;
@@ -160,6 +210,23 @@ export default function ContextPanel({
 
     body = (
       <div className="space-y-2.5">
+        {onToggleRadius && (
+          <button
+            type="button"
+            aria-pressed={radiusShown}
+            onClick={onToggleRadius}
+            className={`w-full rounded-xl border px-3 py-2 text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500 ${
+              radiusShown
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-300 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {radiusShown
+              ? "Hide 3-mile area"
+              : "Show 3-mile area"}
+          </button>
+        )}
+
         {impact ? (
           <>
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">

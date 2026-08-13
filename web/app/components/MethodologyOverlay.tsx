@@ -175,13 +175,73 @@ export default function MethodologyOverlay({
               incomplete.
             </p>
             <p>
+              <strong>Impact score:</strong> a
+              transparent weighted composite of
+              average-rank percentiles (0–100)
+              of four block-group metrics:
+            </p>
+            <p className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs leading-6">
+              Impact&nbsp;Score =<br />
+              &nbsp;&nbsp;0.30 × population
+              exposure
+              <br />
+              + 0.30 × facility density (3 mi)
+              <br />
+              + 0.20 × reported power (3 mi)
+              <br />
+              + 0.20 × proposed development (3
+              mi)
+            </p>
+            <p>
+              Facility density is used instead
+              of the development pressure score
+              as a component so no metric is
+              double-counted (that score already
+              blends density, proposed
+              development, and power). Each
+              community profile shows the four
+              weighted contributions, which sum
+              to the score, so every value is
+              reproducible from the published
+              data.
+            </p>
+            <p>
               <strong>Impact level:</strong> a
               classification of the development
               pressure score (Lower &lt; 25 ≤
               Moderate &lt; 50 ≤ High &lt; 75 ≤
-              Very High). It is a{" "}
-              <strong>proxy</strong>, not a
-              validated composite impact model.
+              Very High).
+            </p>
+            <p>
+              <strong>
+                Locality rankings:
+              </strong>{" "}
+              facility counts, proposed counts,
+              and reported MW are summed from
+              the facility dataset per locality.
+              Development pressure per locality
+              is the{" "}
+              <strong>
+                population-weighted mean
+              </strong>{" "}
+              of block-group scores in that
+              county, so the ranking reflects
+              conditions where residents
+              actually live rather than empty
+              land.
+            </p>
+            <p>
+              <strong>
+                Data confidence:
+              </strong>{" "}
+              a completeness rating per block
+              group, counting whether facility
+              counts, proposed development,
+              reported MW, and Census population
+              are all present (High ≥ 4 of 4,
+              Moderate ≥ 2, otherwise Low). It
+              rates how complete the inputs are,
+              not how severe the impact is.
             </p>
           </Section>
 

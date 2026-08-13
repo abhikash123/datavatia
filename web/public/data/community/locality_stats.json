@@ -1,0 +1,557 @@
+[
+ {
+  "name": "Loudoun County",
+  "fips": "51107",
+  "facilities": 201,
+  "proposed": 80,
+  "existing": 121,
+  "reported_MW": 372.0,
+  "development_pressure": 87.8,
+  "bounds": [
+   -77.9622,
+   38.8466,
+   -77.3283,
+   39.3242
+  ]
+ },
+ {
+  "name": "Prince William County",
+  "fips": "51153",
+  "facilities": 92,
+  "proposed": 55,
+  "existing": 37,
+  "reported_MW": 402.0,
+  "development_pressure": 62.8,
+  "bounds": [
+   -77.7159,
+   38.5011,
+   -77.2239,
+   38.9428
+  ]
+ },
+ {
+  "name": "Fairfax County",
+  "fips": "51059",
+  "facilities": 31,
+  "proposed": 9,
+  "existing": 22,
+  "reported_MW": 0.0,
+  "development_pressure": 63.9,
+  "bounds": [
+   -77.537,
+   38.6177,
+   -77.0404,
+   39.0578
+  ]
+ },
+ {
+  "name": "Stafford County",
+  "fips": "51179",
+  "facilities": 15,
+  "proposed": 15,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 64.8,
+  "bounds": [
+   -77.6352,
+   38.2424,
+   -77.2871,
+   38.5926
+  ]
+ },
+ {
+  "name": "Caroline County",
+  "fips": "51033",
+  "facilities": 13,
+  "proposed": 13,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 74.0,
+  "bounds": [
+   -77.6436,
+   37.7763,
+   -77.0687,
+   38.2526
+  ]
+ },
+ {
+  "name": "Henrico County",
+  "fips": "51087",
+  "facilities": 12,
+  "proposed": 3,
+  "existing": 9,
+  "reported_MW": 0.0,
+  "development_pressure": 60.8,
+  "bounds": [
+   -77.6554,
+   37.352,
+   -77.1773,
+   37.7104
+  ]
+ },
+ {
+  "name": "Fauquier County",
+  "fips": "51061",
+  "facilities": 11,
+  "proposed": 10,
+  "existing": 1,
+  "reported_MW": 300.0,
+  "development_pressure": 72.4,
+  "bounds": [
+   -78.1313,
+   38.4096,
+   -77.5313,
+   39.0137
+  ]
+ },
+ {
+  "name": "Culpeper County",
+  "fips": "51047",
+  "facilities": 9,
+  "proposed": 7,
+  "existing": 2,
+  "reported_MW": 0.0,
+  "development_pressure": 69.1,
+  "bounds": [
+   -78.2318,
+   38.3084,
+   -77.6187,
+   38.699
+  ]
+ },
+ {
+  "name": "Spotsylvania County",
+  "fips": "51177",
+  "facilities": 9,
+  "proposed": 9,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 62.1,
+  "bounds": [
+   -77.9536,
+   37.9907,
+   -77.3703,
+   38.3781
+  ]
+ },
+ {
+  "name": "Chesterfield County",
+  "fips": "51041",
+  "facilities": 8,
+  "proposed": 6,
+  "existing": 2,
+  "reported_MW": 25.0,
+  "development_pressure": 51.2,
+  "bounds": [
+   -77.8783,
+   37.2171,
+   -77.2442,
+   37.564
+  ]
+ },
+ {
+  "name": "Hanover County",
+  "fips": "51085",
+  "facilities": 5,
+  "proposed": 4,
+  "existing": 1,
+  "reported_MW": 900.0,
+  "development_pressure": 57.9,
+  "bounds": [
+   -77.7973,
+   37.5381,
+   -77.108,
+   38.0082
+  ]
+ },
+ {
+  "name": "Mecklenburg County",
+  "fips": "51117",
+  "facilities": 4,
+  "proposed": 3,
+  "existing": 1,
+  "reported_MW": 0.0,
+  "development_pressure": 58.4,
+  "bounds": [
+   -78.7403,
+   36.541,
+   -78.0274,
+   36.8912
+  ]
+ },
+ {
+  "name": "City of Petersburg",
+  "fips": "51730",
+  "facilities": 4,
+  "proposed": 4,
+  "existing": 0,
+  "reported_MW": 300.0,
+  "development_pressure": 88.0,
+  "bounds": [
+   -77.4546,
+   37.1651,
+   -77.3298,
+   37.2448
+  ]
+ },
+ {
+  "name": "Frederick County",
+  "fips": "51069",
+  "facilities": 3,
+  "proposed": 2,
+  "existing": 1,
+  "reported_MW": 6.7,
+  "development_pressure": 49.3,
+  "bounds": [
+   -78.5442,
+   39.008,
+   -78.0332,
+   39.466
+  ]
+ },
+ {
+  "name": "King George County",
+  "fips": "51099",
+  "facilities": 3,
+  "proposed": 3,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 66.3,
+  "bounds": [
+   -77.3474,
+   38.1411,
+   -77.001,
+   38.4005
+  ]
+ },
+ {
+  "name": "Louisa County",
+  "fips": "51109",
+  "facilities": 3,
+  "proposed": 3,
+  "existing": 0,
+  "reported_MW": 1100.0,
+  "development_pressure": 53.7,
+  "bounds": [
+   -78.3068,
+   37.7306,
+   -77.6875,
+   38.1524
+  ]
+ },
+ {
+  "name": "Virginia Beach City",
+  "fips": "51810",
+  "facilities": 3,
+  "proposed": 1,
+  "existing": 2,
+  "reported_MW": 0.0,
+  "development_pressure": 44.9,
+  "bounds": [
+   -76.2281,
+   36.5506,
+   -75.867,
+   36.9321
+  ]
+ },
+ {
+  "name": "Harrisonburg City",
+  "fips": "51660",
+  "facilities": 2,
+  "proposed": 1,
+  "existing": 1,
+  "reported_MW": 0.0,
+  "development_pressure": 73.7,
+  "bounds": [
+   -78.9179,
+   38.3898,
+   -78.8243,
+   38.4895
+  ]
+ },
+ {
+  "name": "Norfolk City",
+  "fips": "51710",
+  "facilities": 2,
+  "proposed": 0,
+  "existing": 2,
+  "reported_MW": 0.0,
+  "development_pressure": 48.5,
+  "bounds": [
+   -76.3368,
+   36.8208,
+   -76.1763,
+   36.97
+  ]
+ },
+ {
+  "name": "Scott County",
+  "fips": "51169",
+  "facilities": 2,
+  "proposed": 1,
+  "existing": 1,
+  "reported_MW": 0.0,
+  "development_pressure": 45.8,
+  "bounds": [
+   -82.9851,
+   36.5935,
+   -82.2941,
+   36.8856
+  ]
+ },
+ {
+  "name": "Wise County",
+  "fips": "51195",
+  "facilities": 2,
+  "proposed": 1,
+  "existing": 1,
+  "reported_MW": 45.0,
+  "development_pressure": 54.0,
+  "bounds": [
+   -82.8786,
+   36.799,
+   -82.2986,
+   37.2028
+  ]
+ },
+ {
+  "name": "Pittsylvania County",
+  "fips": "51143",
+  "facilities": 2,
+  "proposed": 2,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 46.3,
+  "bounds": [
+   -79.7148,
+   36.5407,
+   -79.0923,
+   37.1375
+  ]
+ },
+ {
+  "name": "Montgomery County",
+  "fips": "51121",
+  "facilities": 1,
+  "proposed": 0,
+  "existing": 1,
+  "reported_MW": 0.0,
+  "development_pressure": 47.7,
+  "bounds": [
+   -80.6158,
+   36.9815,
+   -80.1777,
+   37.3688
+  ]
+ },
+ {
+  "name": "Orange County",
+  "fips": "51137",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 50.4,
+  "bounds": [
+   -78.369,
+   38.118,
+   -77.7028,
+   38.3931
+  ]
+ },
+ {
+  "name": "Prince Edward County",
+  "fips": "51147",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 53.6,
+  "bounds": [
+   -78.6925,
+   37.0782,
+   -78.2312,
+   37.398
+  ]
+ },
+ {
+  "name": "Surry County",
+  "fips": "51181",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 44.8,
+  "bounds": [
+   -77.156,
+   36.9445,
+   -76.6638,
+   37.2485
+  ]
+ },
+ {
+  "name": "Appomattox County",
+  "fips": "51011",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 300.0,
+  "development_pressure": 68.0,
+  "bounds": [
+   -79.0217,
+   37.2019,
+   -78.5944,
+   37.5525
+  ]
+ },
+ {
+  "name": "Greensville County",
+  "fips": "51081",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 49.7,
+  "bounds": [
+   -77.7671,
+   36.5447,
+   -77.2969,
+   36.8982
+  ]
+ },
+ {
+  "name": "Powhatan County",
+  "fips": "51145",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 50.9,
+  "bounds": [
+   -78.132,
+   37.4149,
+   -77.6554,
+   37.6917
+  ]
+ },
+ {
+  "name": "Botetourt County",
+  "fips": "51023",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 37.7,
+  "bounds": [
+   -80.0741,
+   37.3094,
+   -79.4987,
+   37.801
+  ]
+ },
+ {
+  "name": "City of Fredericksburg",
+  "fips": "51630",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 75.1,
+  "bounds": [
+   -77.5327,
+   38.2703,
+   -77.4471,
+   38.3264
+  ]
+ },
+ {
+  "name": "Wyth County",
+  "fips": "51197",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 48.7,
+  "bounds": [
+   -81.3794,
+   36.7576,
+   -80.7405,
+   37.0733
+  ]
+ },
+ {
+  "name": "Fluvanna County",
+  "fips": "51065",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 0.0,
+  "development_pressure": 48.2,
+  "bounds": [
+   -78.4913,
+   37.6903,
+   -78.0625,
+   38.0065
+  ]
+ },
+ {
+  "name": "Wythe County",
+  "fips": "51197",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 1000.0,
+  "development_pressure": 48.7,
+  "bounds": [
+   -81.3794,
+   36.7576,
+   -80.7405,
+   37.0733
+  ]
+ },
+ {
+  "name": "Goochland County",
+  "fips": "51075",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 900.0,
+  "development_pressure": 58.3,
+  "bounds": [
+   -78.1593,
+   37.564,
+   -77.6164,
+   37.9051
+  ]
+ },
+ {
+  "name": "Shenandoah County",
+  "fips": "51171",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 180.0,
+  "development_pressure": 50.1,
+  "bounds": [
+   -78.8693,
+   38.6047,
+   -78.3004,
+   39.1028
+  ]
+ },
+ {
+  "name": "Dinwiddie County",
+  "fips": "51053",
+  "facilities": 1,
+  "proposed": 1,
+  "existing": 0,
+  "reported_MW": 900.0,
+  "development_pressure": 57.1,
+  "bounds": [
+   -77.9003,
+   36.8738,
+   -77.3946,
+   37.2709
+  ]
+ }
+]

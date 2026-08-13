@@ -49,6 +49,27 @@ export type CommunityProps = {
   development_pressure_score: number | null;
   impact_level: string | null;
   data_confidence: string | null;
+  /** Composite impact score (0-100) and its weighted
+   *  component contributions, which sum to the score. */
+  impact_score: number | null;
+  imp_pop: number | null;
+  imp_density: number | null;
+  imp_power: number | null;
+  imp_proposed: number | null;
+};
+
+/** Locality aggregate from locality_stats.json. */
+export type LocalityStat = {
+  name: string;
+  fips: string | null;
+  facilities: number;
+  proposed: number;
+  existing: number;
+  reported_MW: number;
+  development_pressure: number | null;
+  bounds:
+    | [number, number, number, number]
+    | null;
 };
 
 /** Statewide aggregates from virginia_stats.json. */

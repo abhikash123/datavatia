@@ -30,6 +30,7 @@ import type {
   DataCenter,
   FacilityFilters,
   ImpactRecord,
+  LocalityStat,
   Selection,
   VaStats,
 } from "./lib/types";
@@ -41,6 +42,7 @@ import {
   FACILITY_CLUSTER_ID,
   FACILITY_POINT_ID,
   FACILITY_SOURCE_ID,
+  RADIUS_SOURCE_ID,
   INITIAL_VIEW,
   MAP_STYLE,
   communityFillLayer,
@@ -51,10 +53,13 @@ import {
   facilityCountLayer,
   facilityPointLayer,
   facilitySelectLayer,
+  radiusFillLayer,
+  radiusLineLayer,
 } from "./lib/mapConfig";
 import {
   facilitiesNear,
   boundsOfCenters,
+  circlePolygonMiles,
 } from "./lib/geo";
 import {
   zoomForKind,
@@ -62,6 +67,7 @@ import {
 } from "./lib/geocode";
 
 import SearchBar from "./components/SearchBar";
+import LocalityRankings from "./components/LocalityRankings";
 import FacilityPopup from "./components/FacilityPopup";
 import ContextPanel from "./components/ContextPanel";
 import AnalyticsPanel from "./components/AnalyticsPanel";
@@ -98,6 +104,12 @@ export default function Home() {
 
   const [stats, setStats] =
     useState<VaStats | null>(null);
+
+  const [localityStats, setLocalityStats] =
+    useState<LocalityStat[]>([]);
+
+  const [showRadius, setShowRadius] =
+    useState(false);
 
   const [loading, setLoading] = useState(true);
 
@@ -196,9 +208,24 @@ export default function Home() {
       }
     }
 
+    async function loadLocalities() {
+      try {
+        const response = await fetch(
+          "/data/community/locality_stats.json"
+        );
+
+        if (!response.ok) return;
+
+        setLocalityStats(await response.json());
+      } catch {
+        // Rankings panel simply stays empty.
+      }
+    }
+
     loadData();
     loadImpact();
     loadStats();
+    loadLocalities();
   }, []);
 
   // ----------------------------------------------------------
@@ -363,6 +390,26 @@ export default function Home() {
     selection?.kind === "facility"
       ? selection.center
       : null;
+
+  // Geodesic 3-mile circle around the selected facility;
+  // follows the selection while the toggle stays on.
+  const radiusCircle = useMemo(() => {
+    if (
+      !showRadius ||
+      !selectedFacility ||
+      typeof selectedFacility.Long !==
+        "number" ||
+      typeof selectedFacility.Lat !== "number"
+    ) {
+      return null;
+    }
+
+    return circlePolygonMiles(
+      selectedFacility.Long,
+      selectedFacility.Lat,
+      3
+    );
+  }, [showRadius, selectedFacility]);
 
   const selectedGeoid =
     selection?.kind === "community"
@@ -591,6 +638,75 @@ export default function Home() {
     );
   }, []);
 
+  const toggleRadius = useCallback(() => {
+    setShowRadius((shown) => {
+      const next = !shown;
+
+      // When enabling, fit the view so the whole 3-mile
+      // circle is visible.
+      if (
+        next &&
+        selection?.kind === "facility" &&
+        typeof selection.center.Long ===
+          "number" &&
+        typeof selection.center.Lat === "number"
+      ) {
+        const ring = circlePolygonMiles(
+          selection.center.Long,
+          selection.center.Lat,
+          3
+        ).geometry.coordinates[0];
+
+        const lngs = ring.map((p) => p[0]);
+        const lats = ring.map((p) => p[1]);
+
+        mapRef.current?.fitBounds(
+          [
+            [
+              Math.min(...lngs),
+              Math.min(...lats),
+            ],
+            [
+              Math.max(...lngs),
+              Math.max(...lats),
+            ],
+          ],
+          { padding: 70, duration: 700 }
+        );
+      }
+
+      return next;
+    });
+  }, [selection]);
+
+  const handleLocalitySelect = useCallback(
+    (locality: LocalityStat) => {
+      if (locality.bounds) {
+        mapRef.current?.fitBounds(
+          [
+            [
+              locality.bounds[0],
+              locality.bounds[1],
+            ],
+            [
+              locality.bounds[2],
+              locality.bounds[3],
+            ],
+          ],
+          { padding: 60, duration: 900 }
+        );
+      }
+
+      // Highlight the locality's facilities via the existing
+      // filter (does not touch the analysis layer).
+      setFilters((prev) => ({
+        ...prev,
+        locality: locality.name,
+      }));
+    },
+    []
+  );
+
   function resetView() {
     mapRef.current?.getMap().easeTo({
       center: [
@@ -768,6 +884,21 @@ export default function Home() {
           </Source>
 
           {/* ================================================== */}
+          {/* 3-MILE FACILITY RADIUS */}
+          {/* ================================================== */}
+
+          {radiusCircle && (
+            <Source
+              id={RADIUS_SOURCE_ID}
+              type="geojson"
+              data={radiusCircle}
+            >
+              <Layer {...radiusFillLayer} />
+              <Layer {...radiusLineLayer} />
+            </Source>
+          )}
+
+          {/* ================================================== */}
           {/* SEARCH MARKER */}
           {/* ================================================== */}
 
@@ -843,7 +974,7 @@ export default function Home() {
       {/* LEFT PANEL (desktop) */}
       {/* ================================================== */}
 
-      <div className="absolute left-5 top-36 z-20 hidden md:block">
+      <div className="pointer-events-none absolute left-5 top-36 z-20 hidden max-h-[calc(100vh-10rem)] flex-col gap-3 overflow-y-auto md:flex">
         <InfrastructurePanel
           filters={filters}
           localities={localities}
@@ -851,6 +982,13 @@ export default function Home() {
           totalCount={dataCenters.length}
           onChange={handleFiltersChange}
         />
+
+        {localityStats.length > 0 && (
+          <LocalityRankings
+            localities={localityStats}
+            onSelect={handleLocalitySelect}
+          />
+        )}
       </div>
 
       {/* ================================================== */}
@@ -874,6 +1012,12 @@ export default function Home() {
                     selection.center.OBJECTID
                   ) ?? null)
                 : null
+            }
+            radiusShown={showRadius}
+            onToggleRadius={
+              selection.kind === "facility"
+                ? toggleRadius
+                : undefined
             }
             onDismiss={() => setSelection(null)}
           />
@@ -939,19 +1083,34 @@ export default function Home() {
               event.stopPropagation()
             }
           >
-            <div className="mx-auto w-fit">
+            <div className="mx-auto w-fit space-y-3">
               {mobilePanel === "filters" ? (
-                <InfrastructurePanel
-                  filters={filters}
-                  localities={localities}
-                  visibleCount={
-                    visibleCenters.length
-                  }
-                  totalCount={
-                    dataCenters.length
-                  }
-                  onChange={handleFiltersChange}
-                />
+                <>
+                  <InfrastructurePanel
+                    filters={filters}
+                    localities={localities}
+                    visibleCount={
+                      visibleCenters.length
+                    }
+                    totalCount={
+                      dataCenters.length
+                    }
+                    onChange={
+                      handleFiltersChange
+                    }
+                  />
+                  {localityStats.length > 0 && (
+                    <LocalityRankings
+                      localities={localityStats}
+                      onSelect={(locality) => {
+                        handleLocalitySelect(
+                          locality
+                        );
+                        setMobilePanel("none");
+                      }}
+                    />
+                  )}
+                </>
               ) : (
                 <AnalyticsPanel
                   analysisMode={analysisMode}
@@ -978,6 +1137,12 @@ export default function Home() {
                       selection.center.OBJECTID
                     ) ?? null)
                   : null
+              }
+              radiusShown={showRadius}
+              onToggleRadius={
+                selection.kind === "facility"
+                  ? toggleRadius
+                  : undefined
               }
               onDismiss={() =>
                 setSelection(null)

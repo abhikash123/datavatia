@@ -65,6 +65,58 @@ export function facilitiesNear(
   return out;
 }
 
+/** A geodesic circle as a GeoJSON polygon: each vertex is the
+ *  spherical destination point `radiusMiles` from the center,
+ *  so the ring is a true distance contour rather than a
+ *  degree-offset approximation. */
+export function circlePolygonMiles(
+  lng: number,
+  lat: number,
+  radiusMiles: number,
+  steps = 96
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+  const angular = radiusMiles / EARTH_RADIUS_MILES;
+  const latRad = toRad(lat);
+  const lngRad = toRad(lng);
+
+  const ring: [number, number][] = [];
+
+  for (let i = 0; i <= steps; i++) {
+    const bearing = (i / steps) * 2 * Math.PI;
+
+    const destLat = Math.asin(
+      Math.sin(latRad) * Math.cos(angular) +
+        Math.cos(latRad) *
+          Math.sin(angular) *
+          Math.cos(bearing)
+    );
+
+    const destLng =
+      lngRad +
+      Math.atan2(
+        Math.sin(bearing) *
+          Math.sin(angular) *
+          Math.cos(latRad),
+        Math.cos(angular) -
+          Math.sin(latRad) * Math.sin(destLat)
+      );
+
+    ring.push([toDeg(destLng), toDeg(destLat)]);
+  }
+
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [ring],
+    },
+    properties: {},
+  };
+}
+
 /** [[minLng, minLat], [maxLng, maxLat]] of facility points. */
 export function boundsOfCenters(
   centers: DataCenter[]
