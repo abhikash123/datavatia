@@ -1,0 +1,19 @@
+# Secrets -- never commit
+.env
+
+# Local database (Phase 2)
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Output files
+out/
+*.csv
+!tests/fixtures/*.csv

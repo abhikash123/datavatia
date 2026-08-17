@@ -1,0 +1,225 @@
+# =============================================================================
+# config.yaml  --  EVERY rate the tool uses lives in this file.
+#
+# There are NO rates hardcoded in the Python code. If a tariff, fee or freight
+# rate changes, you edit this file only.
+#
+# Each rate block has two bookkeeping fields:
+#   last_verified: YYYY-MM-DD  -- the day YOU last confirmed this number
+#   verified: true|false       -- false means "this is a placeholder I made up
+#                                 to get the tool running". The tool prints a
+#                                 warning every time it uses an unverified rate.
+#
+# Everything below currently ships as verified: false on purpose. Do not trust
+# a single number in this file until you have confirmed it with your customs
+# broker (duties) or a real quote (freight) or eBay's current fee table (fees).
+# =============================================================================
+
+meta:
+  currency: USD
+  # A rate older than this many days gets a "stale" warning in the output.
+  staleness_days: 90
+
+
+# -----------------------------------------------------------------------------
+# FREIGHT
+# Air is priced on "chargeable weight" = the greater of actual weight and
+# dimensional weight (L x W x H / divisor). Divisor 166 is the common US
+# air-freight divisor for inches/pounds.
+# Ocean here is a simplified per-cubic-foot estimate. Real LCL ocean quotes are
+# per cubic meter (CBM) with a bunch of port fees on top; the min_charge below
+# is your rough stand-in for those.
+# -----------------------------------------------------------------------------
+freight:
+  air:
+    usd_per_lb: 4.50
+    dim_divisor: 166
+    # Minimum charge for the whole shipment, amortized across the order.
+    min_charge_usd: 120.00
+    last_verified: 2026-08-17
+    verified: false          # TODO: replace with a real forwarder quote
+  ocean:
+    usd_per_cubic_ft: 9.00
+    min_charge_usd: 350.00
+    last_verified: 2026-08-17
+    verified: false          # TODO: replace with a real LCL quote (per CBM -> per cu ft)
+
+
+# -----------------------------------------------------------------------------
+# CUSTOMS
+# Duties are calculated on the "customs value" of the goods. For a normal FOB
+# purchase that is what you paid the supplier for the goods (supplier_unit_cost
+# x quantity) -- NOT including international freight. Confirm with your broker.
+# -----------------------------------------------------------------------------
+customs:
+  # Charged once per customs entry (one entry = one shipment). Amortized over
+  # the order quantity by the tool.
+  broker_entry_fee_usd: 150.00
+  last_verified: 2026-08-17
+  verified: false            # TODO: verify with customs broker
+
+  bond:
+    # A single-transaction bond is per shipment. A continuous bond is annual --
+    # if you buy a continuous bond, divide its annual cost by the number of
+    # shipments you expect that year and put that number here.
+    fee_usd: 60.00
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify with customs broker
+
+  section_232:
+    # Steel / aluminum derivative surcharge.
+    #
+    # IMPORTANT: Section 232 on derivative products is assessed on the value of
+    # the DECLARED METAL CONTENT of the article, not automatically on the full
+    # entered value. Each SKU below has a `metal_content_fraction` -- the share
+    # of the customs value that is steel/aluminum. 1.0 means "all of it".
+    # You MUST confirm with your customs broker whether your specific HTS line
+    # is on the Section 232 derivative list at all, and what metal content
+    # value your supplier will declare on the commercial invoice. Getting this
+    # wrong in either direction is expensive.
+    rate: 0.50
+    applies_to: [steel, aluminum]
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify applicability AND rate with customs broker
+
+
+# -----------------------------------------------------------------------------
+# HTS CODE TABLE
+# Keyed by the HTS code you declare. Each entry carries its own MFN duty rate
+# and its own Section 301 rate, so nothing is hardcoded and you can update a
+# single line when a rate moves.
+#
+# EVERY RATE HERE IS A PLACEHOLDER. Auto parts commonly sit at 2.5% MFN and
+# Section 301 List 3 at 25%, which is what is seeded below, but classification
+# is the importer's legal responsibility and rates change constantly.
+# -----------------------------------------------------------------------------
+hts_codes:
+  "8708.99.8180":
+    description: "Other parts and accessories of motor vehicles (catch-all)"
+    mfn_rate: 0.025
+    section_301_rate: 0.25
+    section_301_list: "List 3"
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify with customs broker
+  "8484.10.0000":
+    description: "Gaskets and similar joints of metal sheeting combined with other material"
+    mfn_rate: 0.025
+    section_301_rate: 0.25
+    section_301_list: "List 3"
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify with customs broker
+  "8708.80.6590":
+    description: "Suspension systems and parts thereof (control arms)"
+    mfn_rate: 0.025
+    section_301_rate: 0.25
+    section_301_list: "List 3"
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify with customs broker
+  "8708.92.5000":
+    description: "Mufflers and exhaust pipes"
+    mfn_rate: 0.025
+    section_301_rate: 0.25
+    section_301_list: "List 3"
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify with customs broker
+  "8511.30.0080":
+    description: "Distributors and ignition coils"
+    mfn_rate: 0.025
+    section_301_rate: 0.25
+    section_301_list: "List 3"
+    last_verified: 2026-08-17
+    verified: false          # TODO: verify with customs broker
+
+
+# -----------------------------------------------------------------------------
+# MARKETPLACE FEES (eBay)
+# final_value_fee_pct is applied to the sale price. eBay actually charges the
+# final value fee on the total amount of the sale including any shipping you
+# charge the buyer -- these SKUs assume free shipping (shipping baked into the
+# price), which is the normal way to sell parts, so sale price == total.
+# -----------------------------------------------------------------------------
+marketplace:
+  ebay:
+    final_value_fee_pct: 0.1325
+    per_order_fixed_fee_usd: 0.40
+    promoted_listings_pct: 0.02      # optional ad rate; 2% is a common floor
+    return_allowance_pct: 0.05       # your reserve for returns/damage, % of revenue
+    last_verified: 2026-08-17
+    verified: false        # TODO: check eBay's current fee table for Motors: Parts & Accessories
+
+
+# -----------------------------------------------------------------------------
+# SKU CANDIDATES
+# Starter list so you can run the tool immediately. Supplier costs, MOQs and
+# weights are your numbers; target_sell_price and outbound_shipping_usd are
+# rough guesses until Phase 2 pulls real sold prices.
+#
+# metal: steel | aluminum | none    -- drives whether Section 232 applies
+# metal_content_fraction: share of customs value that is the metal (0.0 - 1.0)
+# dims_in: [length, width, height] of ONE unit, in inches, packed
+# -----------------------------------------------------------------------------
+skus:
+  - id: b58-charge-pipe
+    name: "B58 aluminum charge pipe"
+    supplier_unit_cost: 45.00
+    moq: 20
+    unit_weight_lbs: 3.0
+    dims_in: [24, 8, 8]
+    freight_mode: air
+    hts_code: "8708.99.8180"
+    metal: aluminum
+    metal_content_fraction: 1.0
+    target_sell_price: 149.00
+    outbound_shipping_usd: 12.00
+
+  - id: n20-oil-filter-housing-gasket
+    name: "N20 oil filter housing gasket kit"
+    supplier_unit_cost: 6.00
+    moq: 100
+    unit_weight_lbs: 0.5
+    dims_in: [8, 6, 2]
+    freight_mode: air
+    hts_code: "8484.10.0000"
+    metal: none
+    metal_content_fraction: 0.0
+    target_sell_price: 29.00
+    outbound_shipping_usd: 5.00
+
+  - id: f30-front-control-arm-pair
+    name: "F30 front control arm pair"
+    supplier_unit_cost: 38.00
+    moq: 30
+    unit_weight_lbs: 12.0
+    dims_in: [20, 12, 8]
+    freight_mode: ocean
+    hts_code: "8708.80.6590"
+    metal: steel
+    metal_content_fraction: 0.9
+    target_sell_price: 139.00
+    outbound_shipping_usd: 18.00
+
+  - id: b58-catback-exhaust
+    name: "B58 catback exhaust"
+    supplier_unit_cost: 180.00
+    moq: 10
+    unit_weight_lbs: 45.0
+    dims_in: [60, 16, 14]
+    freight_mode: ocean
+    hts_code: "8708.92.5000"
+    metal: steel
+    metal_content_fraction: 1.0
+    target_sell_price: 749.00
+    outbound_shipping_usd: 95.00
+
+  - id: n54-n55-ignition-coil-set6
+    name: "N54/N55 ignition coil set of 6"
+    supplier_unit_cost: 28.00
+    moq: 50
+    unit_weight_lbs: 2.0
+    dims_in: [10, 8, 5]
+    freight_mode: air
+    hts_code: "8511.30.0080"
+    metal: none
+    metal_content_fraction: 0.0
+    target_sell_price: 89.00
+    outbound_shipping_usd: 9.00
