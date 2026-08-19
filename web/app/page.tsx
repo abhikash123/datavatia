@@ -68,6 +68,7 @@ import {
 
 import SearchBar from "./components/SearchBar";
 import LocalityRankings from "./components/LocalityRankings";
+import CivicActionPanel from "./components/CivicActionPanel";
 import FacilityPopup from "./components/FacilityPopup";
 import ContextPanel from "./components/ContextPanel";
 import AnalyticsPanel from "./components/AnalyticsPanel";
@@ -1023,6 +1024,19 @@ export default function Home() {
           />
         )}
 
+        {selection && (
+          <CivicActionPanel
+            selection={selection}
+            impact={
+              selection.kind === "facility"
+                ? (impactById?.get(
+                    selection.center.OBJECTID
+                  ) ?? null)
+                : null
+            }
+          />
+        )}
+
       </div>
 
       {/* ================================================== */}
@@ -1127,8 +1141,8 @@ export default function Home() {
 
       {/* Mobile context sheet */}
       {selection && (
-        <div className="absolute inset-x-3 bottom-16 z-30 md:hidden">
-          <div className="mx-auto w-fit">
+        <div className="absolute inset-x-3 bottom-16 z-30 max-h-[75vh] overflow-y-auto md:hidden">
+          <div className="mx-auto w-fit space-y-3">
             <ContextPanel
               selection={selection}
               impact={
@@ -1146,6 +1160,17 @@ export default function Home() {
               }
               onDismiss={() =>
                 setSelection(null)
+              }
+            />
+
+            <CivicActionPanel
+              selection={selection}
+              impact={
+                selection.kind === "facility"
+                  ? (impactById?.get(
+                      selection.center.OBJECTID
+                    ) ?? null)
+                  : null
               }
             />
           </div>
