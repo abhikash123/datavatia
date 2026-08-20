@@ -725,7 +725,7 @@ export default function Home() {
     communityStatus !== "idle";
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[#d8ddd8] text-slate-900">
+    <main className="fixed inset-0 overflow-hidden bg-[#d8ddd8] text-slate-900">
 
       {/* ================================================== */}
       {/* MAP */}

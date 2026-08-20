@@ -23,4 +23,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* Keep mobile pull-to-refresh and rubber-banding from
+     fighting with map panning. */
+  overscroll-behavior: none;
 }
+
+/* The app shell (main) is fixed to the viewport edges, so it
+   tracks mobile browser chrome natively and can never be
+   displaced by elements injected into <body>. */
