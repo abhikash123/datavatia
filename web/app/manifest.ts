@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
 
+// Required for the CAPACITOR_BUILD static export; a no-op for
+// normal server builds.
+export const dynamic = "force-static";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Datavatia",
