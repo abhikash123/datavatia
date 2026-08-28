@@ -45,8 +45,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       {/* Plain block body, no flex: the full-screen map must
           never be displaced by injected siblings (extensions,
-          dev overlays), and the page itself never scrolls. */}
-      <body className="h-full overflow-hidden">{children}</body>
+          dev overlays), and the page itself never scrolls.
+          suppressHydrationWarning covers attributes injected
+          into <body> by browser extensions (e.g. Grammarly)
+          before React hydrates; it only applies to this
+          element's attributes, not to the app tree. */}
+      <body
+        className="h-full overflow-hidden"
+        suppressHydrationWarning
+      >
+        {children}
+      </body>
     </html>
   );
 }
