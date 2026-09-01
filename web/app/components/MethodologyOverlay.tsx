@@ -317,6 +317,21 @@ export default function MethodologyOverlay({
             </p>
           </Section>
 
+          <Section title="Privacy">
+            <p>
+              Datavatia collects no personal
+              data. See the{" "}
+              <a
+                href="/privacy"
+                className="font-semibold text-sky-800 underline underline-offset-2"
+              >
+                Privacy Policy
+              </a>{" "}
+              for the few network requests the
+              app makes.
+            </p>
+          </Section>
+
         </div>
 
       </div>
