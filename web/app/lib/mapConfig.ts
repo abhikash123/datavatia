@@ -34,10 +34,11 @@ export const RADIUS_LINE_ID = "facility-radius-line";
 export const MAP_STYLE: StyleSpecification = {
   version: 8,
 
-  // The glyphs endpoint provides the fontstack used by the
-  // cluster-count symbol layer.
-  glyphs:
-    "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  // The fontstack used by the cluster-count symbol layer is
+  // bundled and served locally (public/fonts/), so label
+  // rendering never depends on an external demo server —
+  // important for offline use and App Store review.
+  glyphs: "/fonts/{fontstack}/{range}.pbf",
 
   sources: {
     "esri-topo": {
