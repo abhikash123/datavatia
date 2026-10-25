@@ -61,6 +61,7 @@ import {
   boundsOfCenters,
   circlePolygonMiles,
 } from "./lib/geo";
+import { withBase } from "./lib/basePath";
 import {
   zoomForKind,
   type GeocodeResult,
@@ -81,7 +82,7 @@ import MethodologyOverlay from "./components/MethodologyOverlay";
 // the worker silently never starts and GeoJSON sources hang
 // forever. Point it at the copy served from public/ instead
 // (kept in sync by scripts/sync-maplibre-worker.js).
-setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+setWorkerUrl(withBase("/maplibre/maplibre-gl-worker.mjs"));
 
 const DEFAULT_FILTERS: FacilityFilters = {
   showProposed: true,
@@ -151,7 +152,7 @@ export default function Home() {
     async function loadData() {
       try {
         const response = await fetch(
-          "/data/data_centers.json"
+          withBase("/data/data_centers.json")
         );
 
         if (!response.ok) {
@@ -174,7 +175,7 @@ export default function Home() {
     async function loadImpact() {
       try {
         const response = await fetch(
-          "/data/impact_scores.json"
+          withBase("/data/impact_scores.json")
         );
 
         if (!response.ok) return;
@@ -198,7 +199,7 @@ export default function Home() {
     async function loadStats() {
       try {
         const response = await fetch(
-          "/data/community/virginia_stats.json"
+          withBase("/data/community/virginia_stats.json")
         );
 
         if (!response.ok) return;
@@ -212,7 +213,7 @@ export default function Home() {
     async function loadLocalities() {
       try {
         const response = await fetch(
-          "/data/community/locality_stats.json"
+          withBase("/data/community/locality_stats.json")
         );
 
         if (!response.ok) return;

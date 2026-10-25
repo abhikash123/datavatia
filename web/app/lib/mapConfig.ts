@@ -1,6 +1,7 @@
 import type { LayerProps } from "react-map-gl/maplibre";
 import type { StyleSpecification } from "maplibre-gl";
 import type { AnalysisMode } from "./types";
+import { withBase } from "./basePath";
 
 export const INITIAL_VIEW = {
   longitude: -78.5,
@@ -11,8 +12,9 @@ export const INITIAL_VIEW = {
 // Passed to the source as a URL so MapLibre's worker fetches
 // and parses it off the main thread. Handing the source a
 // pre-parsed object stalls the worker on a file this large.
-export const COMMUNITY_DATA_URL =
-  "/data/community/virginia_community_profiles.geojson";
+export const COMMUNITY_DATA_URL = withBase(
+  "/data/community/virginia_community_profiles.geojson"
+);
 
 export const COMMUNITY_SOURCE_ID = "community-source";
 export const COMMUNITY_FILL_ID = "community-population-fill";
@@ -38,7 +40,7 @@ export const MAP_STYLE: StyleSpecification = {
   // bundled and served locally (public/fonts/), so label
   // rendering never depends on an external demo server —
   // important for offline use and App Store review.
-  glyphs: "/fonts/{fontstack}/{range}.pbf",
+  glyphs: withBase("/fonts/{fontstack}/{range}.pbf"),
 
   sources: {
     "esri-topo": {

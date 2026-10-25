@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { withBase } from "./lib/basePath";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,8 +24,8 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
-    icon: "/favicon.ico",
-    apple: "/icons/apple-touch-icon.png",
+    icon: withBase("/favicon.ico"),
+    apple: withBase("/icons/apple-touch-icon.png"),
   },
 };
 
